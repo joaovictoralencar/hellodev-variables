@@ -1,0 +1,27 @@
+{
+  "name": "com.hellodev.variables",
+  "version": "1.0.0",
+  "displayName": "HelloDev Variables",
+  "description": "ScriptableObject-backed variables (SO variables) with change events for designer-friendly data sharing.",
+  "unity": "6000.0",
+  "unityRelease": "0f1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joaovictoralencar/hellodev-variables.git"
+  },
+  "dependencies": {
+    "com.hellodev.utils": "1.2.0"
+  },
+  "keywords": [
+    "scriptable objects",
+    "so",
+    "variable",
+    "design friendly"
+  ],
+  "author": {
+    "name": "HelloDev",
+    "email": "hello.dev.tecnologia@gmail.com",
+    "url": ""
+  },
+  "license": "MIT"
+}

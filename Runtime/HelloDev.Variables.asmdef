@@ -1,0 +1,22 @@
+{
+    "name": "HelloDev.Variables",
+    "rootNamespace": "HelloDev.Variables",
+    "references": [
+        "HelloDev.Utils"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.hellodev.variables",
+            "expression": "",
+            "define": "HELLODEV_VARIABLES"
+        }
+    ],
+    "noEngineReferences": false
+}

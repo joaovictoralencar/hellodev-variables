@@ -1,0 +1,14 @@
+{
+  "name": "HelloDev.Variables.Editor",
+  "references": [
+    "HelloDev.Variables"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "noEngineReferences": false
+}
