@@ -11,5 +11,10 @@ namespace HelloDev.Variables
     public abstract class VariableBase_SO : RuntimeScriptableObject
     {
         public abstract void ResetToDefault();
+
+        protected override void OnScriptableObjectReset()
+        {
+            ResetToDefault();
+        }
     }
 }
