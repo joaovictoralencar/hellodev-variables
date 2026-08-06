@@ -1,4 +1,3 @@
-using System.Linq;
 using UnityEngine;
 using UnityEditor;
 using System.IO;
@@ -55,20 +54,35 @@ namespace HelloDev.Variables.Editor
             {
                 var args = fieldType.GetGenericArguments();
                 if (args != null && args.Length > 0)
-                    fieldType = args[0].IsSubclassOf(typeof(ScriptableObject)) ? args[0] : fieldType;
-            }
+                            {
+                                var genArg = args[0];
+                                if (genArg.IsSubclassOf(typeof(ScriptableObject))) fieldType = genArg;
+                            }
+                        }
 
             // Resolve the SO variable concrete type (handles common typed classes)
             // If fieldType is a subclass of ScriptableObject already (e.g., FloatVariable_SO), use it
             if (!typeof(ScriptableObject).IsAssignableFrom(fieldType))
             {
                 // Fallback: try to find a Variable type in the assembly matching the field type name
-                var candidates = System.AppDomain.CurrentDomain.GetAssemblies()
-                    .SelectMany(a => a.GetTypes())
-                    .Where(t => typeof(ScriptableObject).IsAssignableFrom(t) && t.Name.ToLower().Contains(fieldType.Name.ToLower()))
-                    .ToArray();
-                if (candidates.Length > 0)
-                    fieldType = candidates[0];
+                // Try to find candidate ScriptableObject types whose name contains the field type name
+                var assemblies = System.AppDomain.CurrentDomain.GetAssemblies();
+                System.Type found = null;
+                foreach (var a in assemblies)
+                {
+                    System.Type[] types = null;
+                    try { types = a.GetTypes(); } catch { continue; }
+                    foreach (var t in types)
+                    {
+                        if (typeof(ScriptableObject).IsAssignableFrom(t) && t.Name.IndexOf(fieldType.Name, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            found = t;
+                            break;
+                        }
+                    }
+                    if (found != null) break;
+                }
+                if (found != null) fieldType = found;
             }
 
             // Create folder if it doesn't exist
@@ -131,7 +145,10 @@ namespace HelloDev.Variables.Editor
 
             // If generic like Variable_SO`1, try to read generic arg name
             if (fieldType.IsGenericType)
-                return fieldType.GetGenericArguments().FirstOrDefault()?.Name ?? name;
+            {
+                var args = fieldType.GetGenericArguments();
+                if (args != null && args.Length > 0) return args[0].Name;
+            }
 
             // Fallback: strip common suffixes
             return name.Replace("Variable", string.Empty).Replace("_SO", string.Empty);
@@ -142,8 +159,14 @@ namespace HelloDev.Variables.Editor
             if (string.IsNullOrEmpty(raw)) return string.Empty;
             // Replace spaces and illegal path chars with underscore
             var invalid = Path.GetInvalidFileNameChars();
-            var cleaned = new string(raw.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
-            // Preserve camel/pascal as single token; replace '.' with '_'
+            var chars = new System.Text.StringBuilder();
+            foreach (var c in raw)
+            {
+                bool isInvalid = false;
+                for (int i = 0; i < invalid.Length; i++) if (invalid[i] == c) { isInvalid = true; break; }
+                chars.Append(isInvalid ? '_' : c);
+            }
+            var cleaned = chars.ToString();
             return cleaned.Replace('.', '_');
         }
     }

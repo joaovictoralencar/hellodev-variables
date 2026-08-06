@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -64,7 +63,7 @@ namespace HelloDev.Variables.Editor
             var fiDefault = targetType.GetField("_defaultValue", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
             bool hasDefault = defaultProp != null || fiDefault != null;
             var piValue = targetType.GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
-            var hasSetter = (piValue != null && piValue.CanWrite) || targetType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic).Any(m => m.Name == "SetValue" && m.GetParameters().Length == 1);
+            bool hasSetter = (piValue != null && piValue.CanWrite) || MethodExists(targetType, "SetValue", 1);
 
             if (hasDefault && hasSetter)
             {
@@ -164,6 +163,18 @@ namespace HelloDev.Variables.Editor
                 default:
                     return null;
             }
+        }
+
+
+        private bool MethodExists(System.Type targetType, string methodName, int paramCount)
+        {
+            var methods = targetType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+            foreach (var m in methods)
+            {
+                if (m.Name == methodName && m.GetParameters().Length == paramCount)
+                    return true;
+            }
+            return false;
         }
     }
 }
