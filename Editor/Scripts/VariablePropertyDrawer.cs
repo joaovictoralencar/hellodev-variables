@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 using UnityEditor;
 using System.IO;
@@ -7,30 +8,35 @@ namespace HelloDev.Variables.Editor
     /// <summary>
     /// PropertyDrawer for VariableBase_SO fields.
     /// Shows a "Create" button when the field is null, allowing quick SO creation.
+    /// When a value is already assigned the full width is used.
     /// </summary>
     [CustomPropertyDrawer(typeof(VariableBase_SO), useForChildren: true)]
     public class VariablePropertyDrawer : PropertyDrawer
     {
         private const string DefaultVariablesFolder = "Assets/Variables";
-        private const float ButtonWidth = 60f;
+        private const float ButtonWidth = 70f;
         private const float ButtonPadding = 4f;
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             EditorGUI.BeginProperty(position, label, property);
 
-            // Draw the property field (object reference)
-            Rect propertyRect = new Rect(position.x, position.y, position.width - (ButtonWidth + ButtonPadding), position.height);
-            EditorGUI.PropertyField(propertyRect, property, label);
+            bool isNull = property.objectReferenceValue == null;
 
-            // Draw "Create" button only if the field is null
-            if (property.objectReferenceValue == null)
+            if (isNull)
             {
+                // Reserve space for the Create button
+                Rect propertyRect = new Rect(position.x, position.y, position.width - (ButtonWidth + ButtonPadding), position.height);
+                EditorGUI.PropertyField(propertyRect, property, label);
+
                 Rect buttonRect = new Rect(position.x + position.width - ButtonWidth, position.y, ButtonWidth, position.height);
                 if (GUI.Button(buttonRect, "Create", EditorStyles.miniButton))
-                {
                     CreateVariableAsset(property);
-                }
+            }
+            else
+            {
+                // Full width when a variable is assigned
+                EditorGUI.PropertyField(position, property, label);
             }
 
             EditorGUI.EndProperty();
@@ -41,10 +47,28 @@ namespace HelloDev.Variables.Editor
             // Determine the variable type from the field's actual type
             var fieldType = fieldInfo.FieldType;
 
-            // If it's a generic type, get the generic argument (e.g., List<FloatVariable_SO> -> FloatVariable_SO)
+            if (fieldType.IsArray)
+                fieldType = fieldType.GetElementType();
+
+            // If it's a generic type (e.g., Variable_SO<T>), attempt to get the generic argument
             if (fieldType.IsGenericType)
             {
-                fieldType = fieldType.GetGenericArguments()[0];
+                var args = fieldType.GetGenericArguments();
+                if (args != null && args.Length > 0)
+                    fieldType = args[0].IsSubclassOf(typeof(ScriptableObject)) ? args[0] : fieldType;
+            }
+
+            // Resolve the SO variable concrete type (handles common typed classes)
+            // If fieldType is a subclass of ScriptableObject already (e.g., FloatVariable_SO), use it
+            if (!typeof(ScriptableObject).IsAssignableFrom(fieldType))
+            {
+                // Fallback: try to find a Variable type in the assembly matching the field type name
+                var candidates = System.AppDomain.CurrentDomain.GetAssemblies()
+                    .SelectMany(a => a.GetTypes())
+                    .Where(t => typeof(ScriptableObject).IsAssignableFrom(t) && t.Name.ToLower().Contains(fieldType.Name.ToLower()))
+                    .ToArray();
+                if (candidates.Length > 0)
+                    fieldType = candidates[0];
             }
 
             // Create folder if it doesn't exist
@@ -53,12 +77,30 @@ namespace HelloDev.Variables.Editor
                 AssetDatabase.CreateFolder("Assets", "Variables");
             }
 
-            // Generate a unique filename based on the field name and type
-            string varTypeName = fieldType.Name.Replace("Variable_SO", "");
-            string fileName = $"{property.serializedObject.targetObject.name}_{varTypeName}_Variable_SO";
-            string assetPath = Path.Combine(DefaultVariablesFolder, $"{fileName}.asset");
+            // Determine name components
+            string typeSegment = InferTypeSegment(fieldType);
+            string category = "Generic";
+            string itemName = SanitizeName(property.name);
+            string owner = SanitizeName(property.serializedObject.targetObject.name);
 
-            // Ensure unique filename
+            // Check for VariableMeta attribute on the field
+            var metaAttr = fieldInfo.GetCustomAttributes(typeof(HelloDev.Variables.VariableMetaAttribute), false)
+                .Cast<HelloDev.Variables.VariableMetaAttribute>()
+                .FirstOrDefault();
+            if (metaAttr != null)
+            {
+                category = string.IsNullOrEmpty(metaAttr.Category) ? category : SanitizeName(metaAttr.Category);
+                if (!string.IsNullOrEmpty(metaAttr.ItemName)) itemName = SanitizeName(metaAttr.ItemName);
+                if (!string.IsNullOrEmpty(metaAttr.Owner)) owner = SanitizeName(metaAttr.Owner);
+            }
+
+            // Build filename using requested pattern
+            var parts = new[] { "SO", "Variable", typeSegment, category, itemName, owner }
+                .Where(p => !string.IsNullOrEmpty(p))
+                .ToArray();
+
+            string fileName = string.Join("_", parts);
+            string assetPath = Path.Combine(DefaultVariablesFolder, fileName + ".asset");
             assetPath = AssetDatabase.GenerateUniqueAssetPath(assetPath);
 
             // Create instance and save asset
@@ -77,7 +119,35 @@ namespace HelloDev.Variables.Editor
             property.objectReferenceValue = newVariable;
             property.serializedObject.ApplyModifiedProperties();
 
-            EditorUtility.DisplayDialog("Success", $"Created: {Path.GetFileName(assetPath)}", "OK");
+            // Inform user
+            Debug.Log($"Created variable asset: {assetPath}");
+        }
+
+        private string InferTypeSegment(System.Type fieldType)
+        {
+            if (fieldType == null) return "Unknown";
+            string name = fieldType.Name;
+
+            // Common typed classes naming (FloatVariable_SO -> Float)
+            if (name.EndsWith("Variable_SO"))
+                return name.Replace("Variable_SO", "");
+
+            // If generic like Variable_SO`1, try to read generic arg name
+            if (fieldType.IsGenericType)
+                return fieldType.GetGenericArguments().FirstOrDefault()?.Name ?? name;
+
+            // Fallback: strip common suffixes
+            return name.Replace("Variable", string.Empty).Replace("_SO", string.Empty);
+        }
+
+        private string SanitizeName(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return string.Empty;
+            // Replace spaces and illegal path chars with underscore
+            var invalid = Path.GetInvalidFileNameChars();
+            var cleaned = new string(raw.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
+            // Preserve camel/pascal as single token; replace '.' with '_'
+            return cleaned.Replace('.', '_');
         }
     }
 }
