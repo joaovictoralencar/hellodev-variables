@@ -8,10 +8,10 @@ using UnityEngine;
 
 namespace HelloDev.Variables.Editor
 {
+[CustomEditor(typeof(HelloDev.Variables.VariableBase_SO), true)]
 #if ODIN_INSPECTOR
     public class VariableSOEditor : OdinEditor
 #else
-    [CustomEditor(typeof(HelloDev.Variables.VariableBase_SO), true)]
     public class VariableSOEditor : UnityEditor.Editor
 #endif
     {
