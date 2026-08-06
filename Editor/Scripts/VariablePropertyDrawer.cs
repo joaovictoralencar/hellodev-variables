@@ -118,9 +118,6 @@ namespace HelloDev.Variables.Editor
             // Assign the created asset to the property
             property.objectReferenceValue = newVariable;
             property.serializedObject.ApplyModifiedProperties();
-
-            // Inform user
-            Debug.Log($"Created variable asset: {assetPath}");
         }
 
         private string InferTypeSegment(System.Type fieldType)

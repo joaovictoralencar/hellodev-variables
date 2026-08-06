@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -59,21 +60,31 @@ namespace HelloDev.Variables.Editor
             EditorGUILayout.Space();
 
             // Button to apply default value via SetValue/Value setter (invokes events)
-            if (defaultProp != null)
+            // Show if there's a default field or a Value setter / SetValue method.
+            var fiDefault = targetType.GetField("_defaultValue", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
+            bool hasDefault = defaultProp != null || fiDefault != null;
+            var piValue = targetType.GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
+            var hasSetter = (piValue != null && piValue.CanWrite) || targetType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic).Any(m => m.Name == "SetValue" && m.GetParameters().Length == 1);
+
+            if (hasDefault && hasSetter)
             {
                 if (GUILayout.Button("Apply Default (SetValue & Invoke)"))
                 {
-                    // Read default via reflection for reliability
-                    var fi = targetType.GetField("_defaultValue", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
-                    object defaultVal = fi?.GetValue(targetObj);
+                    // Read default via field or serialized property
+                    object defaultVal = null;
+                    if (fiDefault != null) defaultVal = fiDefault.GetValue(targetObj);
+                    else if (defaultProp != null)
+                    {
+                        // Attempt to get value from serialized property (less reliable for generics)
+                        defaultVal = GetSerializedPropertyValue(defaultProp);
+                    }
 
                     bool applied = false;
 
                     // Try property setter first
-                    var pi = targetType.GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
-                    if (pi != null && pi.CanWrite)
+                    if (piValue != null && piValue.CanWrite)
                     {
-                        pi.SetValue(targetObj, defaultVal);
+                        piValue.SetValue(targetObj, defaultVal);
                         applied = true;
                     }
                     else
@@ -96,15 +107,11 @@ namespace HelloDev.Variables.Editor
                         // Mark dirty so asset change persists
                         EditorUtility.SetDirty(targetObj);
                         AssetDatabase.SaveAssets();
-                        Debug.Log($"Applied default value on {targetObj.name}");
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"Could not apply default value on {targetObj.name}: no setter or SetValue method found.");
                     }
                 }
             }
 
+            // Reset button
             // Reset button
             if (target is HelloDev.Variables.VariableBase_SO varBase)
             {
@@ -122,6 +129,41 @@ namespace HelloDev.Variables.Editor
             }
 
             serializedObject.ApplyModifiedProperties();
+        }
+
+        private object GetSerializedPropertyValue(SerializedProperty prop)
+        {
+            switch (prop.propertyType)
+            {
+                case SerializedPropertyType.Integer:
+                    return prop.intValue;
+                case SerializedPropertyType.Boolean:
+                    return prop.boolValue;
+                case SerializedPropertyType.Float:
+                    return prop.floatValue;
+                case SerializedPropertyType.String:
+                    return prop.stringValue;
+                case SerializedPropertyType.Color:
+                    return prop.colorValue;
+                case SerializedPropertyType.ObjectReference:
+                    return prop.objectReferenceValue;
+                case SerializedPropertyType.Enum:
+                    return prop.enumValueIndex;
+                case SerializedPropertyType.Vector2:
+                    return prop.vector2Value;
+                case SerializedPropertyType.Vector3:
+                    return prop.vector3Value;
+                case SerializedPropertyType.Vector4:
+                    return prop.vector4Value;
+                case SerializedPropertyType.Rect:
+                    return prop.rectValue;
+                case SerializedPropertyType.AnimationCurve:
+                    return prop.animationCurveValue;
+                case SerializedPropertyType.Bounds:
+                    return prop.boundsValue;
+                default:
+                    return null;
+            }
         }
     }
 }
