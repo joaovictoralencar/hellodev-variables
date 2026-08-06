@@ -1,6 +1,6 @@
 {
   "name": "com.hellodev.variables",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "displayName": "HelloDev Variables",
   "description": "ScriptableObject-backed variables (SO variables) with change events for designer-friendly data sharing.",
   "unity": "6000.0",
