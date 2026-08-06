@@ -98,9 +98,20 @@ namespace HelloDev.Variables.Editor
             string owner = SanitizeName(property.serializedObject.targetObject.name);
 
             // Check for VariableMeta attribute on the field
-            var metaAttr = fieldInfo.GetCustomAttributes(typeof(HelloDev.Variables.VariableMetaAttribute), false)
-                .Cast<HelloDev.Variables.VariableMetaAttribute>()
-                .FirstOrDefault();
+            HelloDev.Variables.VariableMetaAttribute metaAttr = null;
+            var rawAttrs = fieldInfo.GetCustomAttributes(typeof(HelloDev.Variables.VariableMetaAttribute), false);
+            if (rawAttrs != null)
+            {
+                for (int i = 0; i < rawAttrs.Length; i++)
+                {
+                    if (rawAttrs[i] is HelloDev.Variables.VariableMetaAttribute vma)
+                    {
+                        metaAttr = vma;
+                        break;
+                    }
+                }
+            }
+
             if (metaAttr != null)
             {
                 category = string.IsNullOrEmpty(metaAttr.Category) ? category : SanitizeName(metaAttr.Category);
@@ -109,9 +120,14 @@ namespace HelloDev.Variables.Editor
             }
 
             // Build filename using requested pattern
-            var parts = new[] { "SO", "Variable", typeSegment, category, itemName, owner }
-                .Where(p => !string.IsNullOrEmpty(p))
-                .ToArray();
+            var candidateParts = new[] { "SO", "Variable", typeSegment, category, itemName, owner };
+            var partsList = new System.Collections.Generic.List<string>(candidateParts.Length);
+            for (int i = 0; i < candidateParts.Length; i++)
+            {
+                var p = candidateParts[i];
+                if (!string.IsNullOrEmpty(p)) partsList.Add(p);
+            }
+            var parts = partsList.ToArray();
 
             string fileName = string.Join("_", parts);
             string assetPath = Path.Combine(DefaultVariablesFolder, fileName + ".asset");
