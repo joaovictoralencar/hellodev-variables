@@ -147,3 +147,20 @@ MIT - See LICENSE file
 - Create variables for your project's specific needs
 - Subscribe to `OnValueChanged` to react to value updates
 - Use in combination with HelloDev Conditions for rule-based logic
+
+
+## Releasing a new package version (local)
+A helper script is included to bump package.json, commit, tag and push. It avoids CI and is intended for local releases.
+
+Usage (from package folder):
+
+PowerShell:
+.\release.ps1 -NewVersion 1.2.0
+
+Dry run:
+.\release.ps1 -NewVersion 1.2.0 -DryRun
+
+Notes:
+- The script commits package.json and creates an annotated tag `v{version}` and pushes branch+tags to origin.
+- Review the commit and tag before pushing if you need a different commit message or co-authoring.
+
