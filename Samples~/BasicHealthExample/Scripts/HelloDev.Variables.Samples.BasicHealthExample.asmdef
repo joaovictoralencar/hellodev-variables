@@ -1,0 +1,19 @@
+{
+    "name": "HelloDev.Variables.Samples.BasicHealthExample",
+    "rootNamespace": "HelloDev.Variables.Samples.BasicHealthExample",
+    "references": [
+        "GUID:40a83d876b342bd41b99b35d78533241",
+        "GUID:07668497c187c9c46a487d106686cddb",
+        "GUID:e621e812d43c13d4296efeb1288f1fe0",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

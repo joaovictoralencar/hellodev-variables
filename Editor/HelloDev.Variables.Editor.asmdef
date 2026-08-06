@@ -1,14 +1,17 @@
 {
-  "name": "HelloDev.Variables.Editor",
-  "references": [
-    "HelloDev.Variables"
-  ],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": false,
-  "defineConstraints": [],
-  "noEngineReferences": false
+    "name": "HelloDev.Variables.Editor",
+    "rootNamespace": "",
+    "references": [
+        "HelloDev.Variables",
+        "HelloDev.Utils"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

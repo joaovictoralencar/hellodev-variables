@@ -1,6 +1,6 @@
 {
   "name": "com.hellodev.variables",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "displayName": "HelloDev Variables",
   "description": "ScriptableObject-backed variables (SO variables) with change events for designer-friendly data sharing.",
   "unity": "6000.0",
@@ -23,5 +23,12 @@
     "email": "hello.dev.tecnologia@gmail.com",
     "url": ""
   },
-  "license": "MIT"
+  "license": "MIT",
+  "samples": [
+    {
+      "displayName": "Basic Health Example",
+      "description": "A minimal health example demonstrating FloatVariable_SO usage and debug UI.",
+      "path": "Samples~/BasicHealthExample"
+    }
+  ]
 }

@@ -1,206 +1,149 @@
-# HelloDev Saving
+# HelloDev Variables
 
-Unified save system for Unity games. Provides a centralized manager that coordinates saving/loading across multiple game systems via a modular interface.
+A ScriptableObject-backed variable system for designer-friendly data sharing with automatic change event support.
 
 ## Features
 
-- **UnifiedSaveManager** - Central coordinator for all save/load operations
-- **ISaveableSystem** - Interface for systems that need persistence (quests, inventory, etc.)
-- **ISaveProvider** - Interface for different storage backends (JSON, binary, cloud)
-- **JsonSaveProvider** - Built-in JSON file persistence with pretty-print option
-- **Slot-based Saving** - Multiple save slots with metadata
-- **Auto-save Support** - Configurable auto-save on quit, pause, or interval
-- **GameContext Integration** - Self-registers with bootstrap's GameContext for decoupled access
-- **Bootstrap Integration** - Works with GameBootstrap for coordinated initialization
+- **SO Variables**: Type-safe variables (Float, Int, Bool, String, or custom types) backed by ScriptableObjects
+- **Change Events**: Automatic `UnityEvent<T>` raised when values change
+- **Generic API**: Inherit from `Variable_SO<T>` for any type
+- **Quick Creation**: Create variables inline with a single click in the Inspector
+- **Auto-Reset**: Variables automatically reset to default values between play sessions
 
-## Getting Started
+## Quick Start
 
-### 1. Install the Package
+### Creating Variables (Designer)
 
-**Via Package Manager (Local):**
-1. Open Unity Package Manager (Window > Package Manager)
-2. Click "+" > "Add package from disk"
-3. Navigate to this folder and select `package.json`
+1. **Inline Creation** (Recommended):
+   ```csharp
+   public class PlayerHealth : MonoBehaviour
+   {
+       [SerializeField] private FloatVariable_SO health;
+   }
+   ```
+   - Inspector shows a "Create" button when the field is null
+   - Click → auto-creates `Assets/Variables/PlayerHealth_Float_Variable_SO.asset` and assigns it
 
-**Dependencies:** Ensure `com.hellodev.utils` is installed.
+2. **Manual Creation**:
+   - Right-click in Project window → Create > HelloDev > Variables > [Type] Variable
+   - Or use the menu: Assets > Create > HelloDev > Variables > [Type] Variable
 
-### 2. Create Required Assets
-
-1. Right-click in Project window
-2. Create **HelloDev > Saving > Save System Settings** - Configure paths, file extension, etc.
-
-### 3. Set Up UnifiedSaveManager
-
-Add `UnifiedSaveManager` component to a GameObject (typically on a persistent manager object):
+### Using Variables (Programmer)
 
 ```csharp
-// The manager is configured via inspector:
-// - Settings: SaveSystemSettings_SO asset
-// - Self Initialize: true for standalone, false when using GameBootstrap
-// - Auto-save options: on quit, on pause, or interval-based
-```
-
-### 4. Implement ISaveableSystem
-
-Any system that needs persistence implements `ISaveableSystem`:
-
-```csharp
-using HelloDev.Saving;
-using System.Collections.Generic;
-
-public class InventoryManager : ISaveableSystem
+public class GameManager : MonoBehaviour
 {
-    public string SystemId => "inventory";
-    public int SavePriority => 50;  // Lower = saves first
+    [SerializeField] private IntVariable_SO playerScore;
 
-    private List<string> _items = new();
-
-    public object CaptureSnapshot()
+    void Start()
     {
-        // Return serializable data
-        return new InventorySnapshot { Items = _items.ToList() };
+        // Subscribe to changes
+        playerScore.OnValueChanged.AddListener(OnScoreChanged);
+
+        // Set value (triggers event if changed)
+        playerScore.Value = 100;
+
+        // Reset to default
+        playerScore.ResetToDefault();
     }
 
-    public void RestoreSnapshot(object snapshot)
+    void OnScoreChanged(int newScore)
     {
-        if (snapshot is InventorySnapshot data)
-        {
-            _items = data.Items.ToList();
-        }
+        Debug.Log($"Score: {newScore}");
     }
-
-    public void ResetToDefault()
-    {
-        _items.Clear();
-    }
-}
-
-[System.Serializable]
-public class InventorySnapshot
-{
-    public List<string> Items;
 }
 ```
 
-### 5. Register Systems with the Manager
-
-Systems can register with the save manager during bootstrap via GameContext:
+## Creating Custom Variable Types
 
 ```csharp
-using HelloDev.Saving;
-using HelloDev.Utils;
 using UnityEngine;
+using UnityEngine.Events;
+using HelloDev.Variables;
 
-public class InventoryManager : MonoBehaviour, IBootstrapInitializable, ISaveableSystem
+// Create a variable for any type
+[CreateAssetMenu(menuName = "HelloDev/Variables/Vector3 Variable")]
+public class Vector3Variable_SO : Variable_SO<Vector3>
 {
-    private GameContext _context;
-
-    public void ReceiveContext(GameContext context) => _context = context;
-
-    public Task InitializeAsync()
+    // Optional: override ValuesEqual for custom comparison logic
+    protected override bool ValuesEqual(Vector3 a, Vector3 b)
     {
-        // Access the save manager from context and register
-        if (_context.TryGet<UnifiedSaveManager>(out var saveManager))
-        {
-            saveManager.RegisterSystem(this);
-        }
-        return Task.CompletedTask;
+        return Vector3.Distance(a, b) < 0.001f;
     }
-
-    // ISaveableSystem implementation...
 }
 ```
-
-Or register via direct reference:
-
-```csharp
-[SerializeField] private UnifiedSaveManager saveManager;
-
-void Start()
-{
-    saveManager.RegisterSystem(new InventorySystem());
-}
-```
-
-### 6. Save and Load
-
-```csharp
-// Get save manager from context or direct reference
-var saveManager = _context.Get<UnifiedSaveManager>();
-
-// Save to a slot
-await saveManager.SaveAsync("slot_1");
-
-// Load from a slot
-await saveManager.LoadAsync("slot_1");
-
-// Check if slot has data
-bool exists = await saveManager.SaveExistsAsync("slot_1");
-
-// Delete save data
-await saveManager.DeleteSaveAsync("slot_1");
-
-// Get slot metadata
-var metadata = await saveManager.GetMetadataAsync("slot_1");
-```
-
-## Architecture
-
-```
-UnifiedSaveManager (Coordinator)
-    │
-    ├── ISaveProvider (Storage Backend)
-    │   └── JsonSaveProvider (default)
-    │
-    └── ISaveableSystem[] (Registered Systems)
-        ├── QuestManager
-        ├── InventoryManager
-        └── SettingsManager
-```
-
-The manager:
-1. Collects snapshots from all registered `ISaveableSystem` implementations
-2. Packages them into a `UnifiedSnapshot` with metadata
-3. Passes to `ISaveProvider` for persistence
 
 ## API Reference
 
-### UnifiedSaveManager
-| Member | Description |
-|--------|-------------|
-| `RegisterSystem(ISaveableSystem)` | Register a system for save/load |
-| `UnregisterSystem(ISaveableSystem)` | Remove a system |
-| `SaveAsync(string slotKey)` | Save all systems to slot |
-| `LoadAsync(string slotKey)` | Load all systems from slot |
-| `SaveExistsAsync(string slotKey)` | Check if slot has data |
-| `DeleteSaveAsync(string slotKey)` | Delete save at slot |
-| `GetMetadataAsync(string slotKey)` | Get save metadata |
-| `RegisteredSystems` | Read-only list of registered systems |
-| `DefaultSlotKey` | Default slot for auto-save/load |
-| `HasProvider` | True if save provider is configured |
-| `ReceiveContext(GameContext)` | Called by bootstrap for service registration |
+### VariableBase_SO
+Base class for all variables.
 
-### ISaveableSystem
-| Member | Description |
-|--------|-------------|
-| `SystemId` | Unique identifier for this system |
-| `SavePriority` | Order for save/load (lower = first) |
-| `CaptureSnapshot()` | Return serializable state |
-| `RestoreSnapshot(object)` | Restore from saved state |
-| `ResetToDefault()` | Reset to initial state |
+```csharp
+public abstract void ResetToDefault();
+```
 
-### ISaveProvider
-| Member | Description |
-|--------|-------------|
-| `SaveAsync(slot, data)` | Persist data to storage |
-| `LoadAsync(slot)` | Retrieve data from storage |
-| `DeleteAsync(slot)` | Remove data from storage |
-| `ExistsAsync(slot)` | Check if data exists |
+### Variable_SO<T>
+Generic base class for typed variables.
+
+```csharp
+// Get/set value (property)
+public T Value { get; set; }
+
+// Set value if different (explicit method)
+public void SetValue(T newValue)
+
+// Fires UnityEvent<T> when value changes
+public UnityEvent<T> OnValueChanged
+
+// Reset to default value
+public override void ResetToDefault()
+
+// Override for custom comparison logic
+protected virtual bool ValuesEqual(T a, T b)
+```
+
+### Built-in Types
+- `FloatVariable_SO` - Uses `Mathf.Approximately()` for comparison
+- `IntVariable_SO` - Basic equality comparison
+- `BoolVariable_SO` - Basic equality comparison
+- `StringVariable_SO` - Uses `string.Equals()` for comparison
+
+## Inspector Features
+
+- **Create Button**: Auto-generates SO when field is null (inline)
+- **Reset Button**: Available in SO inspector via custom editor
+  - Resets value to default in both Edit and Play modes
+  - Marks asset as dirty (saves changes)
+
+## Folder Structure
+
+```
+Runtime/
+├── Scripts/
+│   ├── VariableBase_SO.cs          ← Non-generic base with reset logic
+│   ├── Variable_SO.cs              ← Generic base for all types
+│   ├── FloatVariable_SO.cs
+│   ├── IntVariable_SO.cs
+│   ├── BoolVariable_SO.cs
+│   └── StringVariable_SO.cs
+
+Editor/
+├── Scripts/
+│   ├── VariablePropertyDrawer.cs   ← Inline "Create" button
+│   └── VariableEditor.cs           ← Reset button in SO inspector
+```
 
 ## Dependencies
 
-- com.hellodev.utils (1.4.0+)
+- **com.hellodev.utils** (1.2.0+) - RuntimeScriptableObject base class
 
 ## License
 
-MIT License
+MIT - See LICENSE file
+
+---
+
+**Next Steps:**
+- Create variables for your project's specific needs
+- Subscribe to `OnValueChanged` to react to value updates
+- Use in combination with HelloDev Conditions for rule-based logic
