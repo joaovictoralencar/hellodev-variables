@@ -27,6 +27,19 @@ namespace HelloDev.Variables
 
         public UnityEvent<T> OnValueChanged;
 
+        private T _lastValue;
+        private bool _hasBeenSet;
+
+        /// <summary>
+        /// The most recent value set by SetValue. Check HasBeenSet first.
+        /// </summary>
+        public T LastValue => _lastValue;
+
+        /// <summary>
+        /// True if SetValue has been called at least once since reset.
+        /// </summary>
+        public bool HasBeenSet => _hasBeenSet;
+
         protected virtual void OnEnable()
         {
             // Initialize _value from default if not set
@@ -54,8 +67,18 @@ namespace HelloDev.Variables
             if (ValuesEqual(_value, newValue))
                 return;
 
+            _lastValue = newValue;
+            _hasBeenSet = true;
+
             _value = newValue;
-            OnValueChanged?.Invoke(_value);
+            try
+            {
+                OnValueChanged?.Invoke(_value);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"Error invoking OnValueChanged on '{name}': {e.Message}", this);
+            }
         }
 
         /// <summary>

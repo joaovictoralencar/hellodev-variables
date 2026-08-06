@@ -7,6 +7,9 @@ namespace HelloDev.Variables.Editor
     [CustomEditor(typeof(HelloDev.Variables.FloatVariable_SO))]
     public class FloatVariableSOEditor : UnityEditor.Editor
     {
+            private bool _showRuntimeSection = true;
+            private float _runtimeTestValue = 0f;
+
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
@@ -88,6 +91,50 @@ namespace HelloDev.Variables.Editor
                     }
                 }
             }
+
+            // Runtime testing section (Play mode only)
+            GUILayout.Space(6);
+            _showRuntimeSection = EditorGUILayout.BeginFoldoutHeaderGroup(_showRuntimeSection, new GUIContent(" Runtime Testing"));
+            if (_showRuntimeSection)
+            {
+                EditorGUILayout.Space(4);
+                EditorGUI.BeginDisabledGroup(!Application.isPlaying);
+
+                EditorGUILayout.LabelField("Set Value:");
+                _runtimeTestValue = EditorGUILayout.FloatField(_runtimeTestValue);
+                EditorGUILayout.Space(6);
+                if (GUILayout.Button("Set Value", GUILayout.Height(24)))
+                {
+                    bool applied = false;
+                    if (piValue != null && piValue.CanWrite)
+                    {
+                        piValue.SetValue(targetObj, _runtimeTestValue);
+                        applied = true;
+                    }
+                    else
+                    {
+                        foreach (var m in targetType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic))
+                        {
+                            if (m.Name == "SetValue" && m.GetParameters().Length == 1)
+                            {
+                                m.Invoke(targetObj, new object[] { _runtimeTestValue });
+                                applied = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (applied)
+                    {
+                        EditorUtility.SetDirty(targetObj);
+                        AssetDatabase.SaveAssets();
+                    }
+                }
+
+                EditorGUI.EndDisabledGroup();
+                EditorGUILayout.Space(4);
+            }
+            EditorGUILayout.EndFoldoutHeaderGroup();
 
             serializedObject.ApplyModifiedProperties();
         }
