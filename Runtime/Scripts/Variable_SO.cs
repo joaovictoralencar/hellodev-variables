@@ -1,3 +1,6 @@
+#if ODIN_INSPECTOR
+using Sirenix.OdinInspector;
+#endif
 using UnityEngine;
 using UnityEngine.Events;
 using HelloDev.Utils;
@@ -16,12 +19,17 @@ namespace HelloDev.Variables
     public abstract class Variable_SO<T> : VariableBase_SO
     {
         [SerializeField] protected T _defaultValue;
+
+#if ODIN_INSPECTOR
+        [ReadOnly]
+#endif
         [SerializeField] protected T _value;
 
         public UnityEvent<T> OnValueChanged;
 
         protected virtual void OnEnable()
         {
+            // Initialize _value from default if not set
             if (_value == null && _defaultValue == null)
             {
                 _value = _defaultValue;
